@@ -175,7 +175,7 @@ app.post('/api/smtp/send', async (req, res) => {
 
     const mailOptions = {
       from: credentials.smtpUser,
-      to: to.replace(/[<>\s"']/g, '').trim(),
+      to: to.replace(/\r?\n|\r/g, '').trim(),
       subject: subject,
       text: bodyText
     };
