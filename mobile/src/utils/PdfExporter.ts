@@ -1,7 +1,7 @@
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system';
 import { Share, Platform } from 'react-native';
-import { EmailData } from '../services/GmailService';
+import { EmailData } from '../services/EmailService';
 
 export class PdfExporter {
   /**

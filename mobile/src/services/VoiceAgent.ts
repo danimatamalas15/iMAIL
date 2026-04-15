@@ -1,12 +1,13 @@
 import { AudioServices } from './AudioServices';
-import { GmailService, EmailData } from './GmailService';
+import { EmailService, EmailData } from './EmailService';
+import { EmailCredentials } from './AuthService';
 import { PdfExporter } from '../utils/PdfExporter';
 
 export class VoiceAgent {
   /**
    * Orchestrates the entire hands-free flow for a newly received email (Modo 1).
    */
-  static async handleIncomingEmail(token: string, email: EmailData): Promise<void> {
+  static async handleIncomingEmail(credentials: EmailCredentials, email: EmailData): Promise<void> {
     const senderName = email.from.split('<')[0].trim() || email.from;
 
     // --- Paso A: Notificación y Pregunta Inicial ---
@@ -98,8 +99,8 @@ export class VoiceAgent {
       }
 
       // Send the email using Gmail API
-      const success = await GmailService.sendReply(
-        token, 
+      const success = await EmailService.sendReply(
+        credentials, 
         email.from, 
         email.subject, 
         finalReplyText, 
@@ -144,7 +145,7 @@ export class VoiceAgent {
     while (!intentResolvedF1) {
       const deleteIntent = await this.listenAndDetectIntent();
       if (deleteIntent === 'YES') {
-        await GmailService.trashMessage(token, email.id);
+        await EmailService.trashMessage(credentials, email.id);
         await AudioServices.speak("CORREO ELIMINADO. FIN DE LA INTERACCIÓN.");
         return; // Fin
       } else if (deleteIntent === 'NO') {
@@ -160,7 +161,7 @@ export class VoiceAgent {
     while (!intentResolvedF2) {
       const readIntent = await this.listenAndDetectIntent();
       if (readIntent === 'YES') {
-        await GmailService.markAsRead(token, email.id);
+        await EmailService.markAsRead(credentials, email.id);
         await AudioServices.speak("MARCADO COMO LEÍDO. FIN DE LA INTERACCIÓN.");
         intentResolvedF2 = true;
       } else if (readIntent === 'NO') {
@@ -241,16 +242,16 @@ export class VoiceAgent {
   /**
    * Universal command listener triggered by the FAB
    */
-  static async startAssistant(token: string, emails: EmailData[]): Promise<void> {
+  static async startAssistant(credentials: EmailCredentials, emails: EmailData[]): Promise<void> {
     await AudioServices.speak("¿QUÉ QUIERES HACER?");
     const cmd = await this.listenAndTranscribe(5000);
     const text = cmd.toLowerCase().trim();
     
     if (text.includes("enviar") || text.includes("nuevo")) {
-       await this.handleSendNewEmail(token);
+       await this.handleSendNewEmail(credentials);
     } else if (text.includes("leer") || text.includes("escuchar") || text.includes("recibido")) {
        if (emails.length > 0) {
-         await this.handleIncomingEmail(token, emails[0]);
+         await this.handleIncomingEmail(credentials, emails[0]);
        } else {
          await AudioServices.speak("NO HAY CORREOS RECIENTES.");
        }
@@ -262,7 +263,7 @@ export class VoiceAgent {
   /**
    * Flow for sending a brand new email
    */
-  static async handleSendNewEmail(token: string): Promise<void> {
+  static async handleSendNewEmail(credentials: EmailCredentials): Promise<void> {
     let successFlow = false;
     
     while (!successFlow) {
@@ -292,7 +293,7 @@ export class VoiceAgent {
             const cleanSubject = subject.replace(/\r?\n|\r/g, ' ').trim();
             const cleanTo = toEmail.replace(/\r?\n|\r/g, '').trim();
 
-            const success = await GmailService.sendEmail(token, cleanTo, cleanSubject, rawBody);
+            const success = await EmailService.sendEmail(credentials, cleanTo, cleanSubject, rawBody);
             if (success) {
                await AudioServices.speak("CORREO ENVIADO.");
             } else {
