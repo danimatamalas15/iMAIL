@@ -32,13 +32,17 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@react-native-google-signin/google-signin",
       [
         "expo-av",
         {
           "microphonePermission": "Se necesita el micrófono para interactuar respondiendo correos."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "75b0379f-04b2-413b-84f0-6378153abfe3"
+      }
+    }
   }
 }
