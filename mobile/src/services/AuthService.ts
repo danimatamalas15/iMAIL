@@ -1,0 +1,98 @@
+import {
+  GoogleSignin,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
+
+const WEB_CLIENT_ID = '779836222469-ck1gm9kh911fbgom853s1faa1s7hop7i.apps.googleusercontent.com';
+const SCOPES = ['https://mail.google.com/']; 
+const ASYNC_STORAGE_TOKEN_KEY = 'gmail_access_token';
+
+// Configure Google Sign in
+GoogleSignin.configure({
+  webClientId: WEB_CLIENT_ID, // client ID of type WEB for your server
+  offlineAccess: true, // if you want to access Google API on behalf of the user FROM YOUR SERVER
+  forceCodeForRefreshToken: true, // [Android] related to `serverAuthCode`, read the docs link below *.
+  scopes: SCOPES,
+});
+
+export class AuthService {
+  /**
+   * Verifica si hay un token válido guardado o intenta obtenerlo por Sign In Silencioso
+   */
+  static async checkExistingLogin(): Promise<string | null> {
+    try {
+      const isSignedIn = await GoogleSignin.hasPreviousSignIn();
+      if (isSignedIn) {
+        const currentUser = await GoogleSignin.getCurrentUser();
+        if (currentUser) {
+          const tokens = await GoogleSignin.getTokens();
+          await AsyncStorage.setItem(ASYNC_STORAGE_TOKEN_KEY, tokens.accessToken);
+          return tokens.accessToken;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error checking existing login', error);
+      return null;
+    }
+  }
+
+  /**
+   * Inicia el flujo de autenticación de Google con intervención del usuario
+   */
+  static async signIn(): Promise<string | null> {
+    try {
+      await GoogleSignin.hasPlayServices();
+      
+      // Limpiar cualquier sesión "fantasma" que haya quedado atascada por el cambio de cuenta o de clave SHA-1
+      try {
+        await GoogleSignin.signOut();
+      } catch (e) {
+        // Ignoramos el error si no había nada que cerrar
+      }
+
+      await GoogleSignin.signIn();
+      const tokens = await GoogleSignin.getTokens();
+      
+      if (tokens.accessToken) {
+        await AsyncStorage.setItem(ASYNC_STORAGE_TOKEN_KEY, tokens.accessToken);
+        return tokens.accessToken;
+      }
+      return null;
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        console.log('User cancelled sign in');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        console.log('Sign in already in progress');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        console.log('Play services not available');
+        Alert.alert('Error', 'Google Play Services no está disponible.');
+      } else {
+        console.error('Sign in error', error);
+        Alert.alert('Error de Inicio de Sesión', error?.message || JSON.stringify(error) || 'Error desconocido al conectar con Google.');
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Realiza un logout de Google
+   */
+  static async signOut(): Promise<void> {
+    try {
+      await GoogleSignin.signOut();
+      await AsyncStorage.removeItem(ASYNC_STORAGE_TOKEN_KEY);
+    } catch (error) {
+      console.error('Error signing out', error);
+    }
+  }
+
+  /**
+   * Devuelve el último token de acceso guardado localmente
+   */
+  static async getLocalAccessToken(): Promise<string | null> {
+    return await AsyncStorage.getItem(ASYNC_STORAGE_TOKEN_KEY);
+  }
+}
