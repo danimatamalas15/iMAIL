@@ -77,15 +77,44 @@ app.post('/api/imap/fetch', async (req, res) => {
         promises.push(parsePromise.then((result) => {
           if (!result) return null;
           const { parsed } = result;
+
+          let cleanText = (parsed.text || '').trim();
+          
+          try {
+            // 1. Quitar citas estándar (>) y firmas (--)
+            const EmailReplyParser = require('email-reply-parser');
+            cleanText = EmailReplyParser.read(cleanText).getVisibleText().trim() || cleanText;
+            
+            // 2. Separadores adicionales en español/otros clientes que el parser inglés ignore
+            const separators = [
+              /El\s.*\s?escribi[óo]:/is,
+              /El\s.*\s?escribió:/is,
+              /On\s.*\s?wrote:/is,
+              /----- Mensaje original -----/i,
+              /-----Original Message-----/i,
+              /________________________________/i,
+              /De:\s.*Enviado:\s/is
+            ];
+            
+            for (const sep of separators) {
+               const match = cleanText.match(sep);
+               if (match && match.index > 0) {
+                  // Mantiene solo el texto que va antes del separador
+                  cleanText = cleanText.substring(0, match.index).trim();
+               }
+            }
+          } catch(e) {
+            console.error(e);
+          }
           
           return {
             id: msgAttributes.uid ? msgAttributes.uid.toString() : seqno.toString(),
             threadId: parsed.messageId || seqno.toString(),
             historyId: seqno.toString(),
-            snippet: parsed.text ? parsed.text.replace(/\n/g, ' ').substring(0, 100) : '',
+            snippet: cleanText.replace(/\n/g, ' ').substring(0, 100),
             subject: parsed.subject || 'Sin Asunto',
             from: parsed.from?.text || 'Desconocido',
-            bodyText: parsed.text || ''
+            bodyText: cleanText
           };
         }));
       });

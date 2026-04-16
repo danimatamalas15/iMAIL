@@ -14,6 +14,7 @@
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
+    "email-reply-parser": "^2.3.5",
     "express": "^5.2.1",
     "firebase-admin": "^13.7.0",
     "imap": "^0.8.19",
