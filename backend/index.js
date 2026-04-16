@@ -184,7 +184,7 @@ app.post('/api/imap/trash', async (req, res) => {
   }
 });
 
-// Enviar Nuevo Email o Responder (SMTP)
+// Enviar Nuevo Email o Responder (SMTP) y Guardarlo en Elementos Enviados (IMAP)
 app.post('/api/smtp/send', async (req, res) => {
   const { credentials, to, subject, bodyText, replyToMessageId } = req.body;
 
@@ -217,6 +217,49 @@ app.post('/api/smtp/send', async (req, res) => {
     }
 
     const info = await transporter.sendMail(mailOptions);
+    
+    // --- NUEVO: Guardar en Elementos Enviados mediante IMAP ---
+    try {
+      const MailComposer = require('nodemailer/lib/mail-composer');
+      let mail = new MailComposer(mailOptions);
+      let rawMessage = await mail.compile().build();
+      
+      let imap = await connectImap(credentials);
+      imap.getBoxes((err, boxes) => {
+        let sentBoxName = 'Sent';
+        if (!err && boxes) {
+          let found = null;
+          for (let boxName in boxes) {
+             let attribs = boxes[boxName].attribs || [];
+             if (attribs.map(a => a.toLowerCase()).includes('\\sent')) {
+                 found = boxName;
+                 break;
+             }
+          }
+          if (found) {
+            sentBoxName = found;
+          } else {
+             const commonNames = ['Sent', 'Sent Items', 'Elementos enviados', 'Enviados', 'INBOX.Sent', '"Elementos enviados"', 'INBOX/Sent'];
+             const allBoxes = Object.keys(boxes);
+             for (let common of commonNames) {
+                let exactMatch = allBoxes.find(b => b.toLowerCase() === common.toLowerCase());
+                if(exactMatch) {
+                   sentBoxName = exactMatch; break;
+                }
+             }
+          }
+        }
+        
+        imap.append(rawMessage, { mailbox: sentBoxName, flags: ['\\Seen'] }, (err) => {
+          imap.end();
+          if(err) console.error("Error salvando a Sent:", err);
+        });
+      });
+    } catch(appendErr) {
+       console.error("Fallo al guardar en enviados:", appendErr);
+    }
+    // -----------------------------------------------------------
+
     res.json({ success: true, messageId: info.messageId });
   } catch (error) {
     res.status(500).json({ error: error.message });

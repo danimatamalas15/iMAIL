@@ -1,7 +1,8 @@
+import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system';
-import { Share, Platform } from 'react-native';
 import { EmailData } from '../services/EmailService';
+
 
 export class PdfExporter {
   /**
@@ -41,7 +42,7 @@ export class PdfExporter {
       // 3. Format Filename: [email_destinatario]_[asunto]_[ddmmaa]_[hh:mm].pdf
       const now = new Date();
       const ddmmaa = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth()+1).padStart(2, '0')}${String(now.getFullYear()).slice(2)}`;
-      const hhmm = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`; // Cannot use ':' in filename
+      const hhmm = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
       
       const emailMatch = email.from.match(/<([^>]+)>/);
       const emailPlain = emailMatch ? emailMatch[1] : email.from;
@@ -50,37 +51,18 @@ export class PdfExporter {
 
       const fileName = `${safeEmail}_${safeSubject}_${ddmmaa}_${hhmm}.pdf`;
 
-      // 4. Save to Downloads
-      if (Platform.OS === 'android') {
-        // @ts-ignore: TS bug in local expo-file-system version
-        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        if (permissions.granted) {
-          try {
-            // We use StorageAccessFramework to save cleanly to external storage
-            // @ts-ignore
-            const destUri = await FileSystem.StorageAccessFramework.createFileAsync(
-              permissions.directoryUri,
-              fileName,
-              'application/pdf'
-            );
-            // Copy file by reading binary
-            const base64Data = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' as any });
-            await FileSystem.writeAsStringAsync(destUri, base64Data, { encoding: 'base64' as any });
-            return true;
-          } catch (e) {
-            console.error('SAF Write error', e);
-            // Fallback to sharing
-            await Share.share({ url: uri, title: fileName });
-          }
-        } else {
-             // Fallback
-             await Share.share({ url: uri, title: fileName });
-        }
-      } else {
-        // iOS: We use sharing dialog directly as direct access to Downloads is restricted without explicit user 'Save to Files' interaction
-        await Share.share({
-          url: uri,
-          title: fileName
+      // 4. Save to a known local cache location using the explicit fileName so it shares nicely
+      const destUri = FileSystem.cacheDirectory + fileName;
+      await FileSystem.copyAsync({
+        from: uri,
+        to: destUri
+      });
+
+      // 5. Open Sharing Dialog
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(destUri, {
+           mimeType: 'application/pdf',
+           dialogTitle: 'Manejar PDF Exportado'
         });
       }
 

@@ -127,7 +127,7 @@ export class VoiceAgent {
         const wantsToPdf = await this.listenAndDetectIntent();
         if (wantsToPdf === 'YES') {
            await PdfExporter.exportEmailAndReply(email, "Respuesta enviada"); 
-           await AudioServices.speak("GUARDADO EN DESCARGAS.");
+           await AudioServices.speak("PDF GENERADO. LA VENTANA DE COMPARTIR SE HA ABIERTO EN PANTALLA, ELIGE DÓNDE GUARDARLO.");
            intentResolvedE = true;
         } else if (wantsToPdf === 'NO') {
            await AudioServices.speak("GRACIAS.");
