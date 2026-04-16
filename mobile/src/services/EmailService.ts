@@ -49,7 +49,7 @@ export class EmailService {
   /**
    * Envía un email. Para responder se debe incluir In-Reply-To y References.
    */
-  static async sendReply(credentials: EmailCredentials, to: string, subject: string, replyText: string, threadId?: string, messageIdToReply?: string): Promise<boolean> {
+  static async sendReply(credentials: EmailCredentials, to: string, subject: string, replyText: string, threadId?: string, messageIdToReply?: string): Promise<string> {
     try {
       const res = await axios.post(`${this.baseURL}/api/smtp/send`, {
         credentials,
@@ -58,17 +58,17 @@ export class EmailService {
         bodyText: replyText,
         replyToMessageId: messageIdToReply
       });
-      return !!res.data.success;
-    } catch (error) {
-      console.error('Error sending reply:', error);
-      return false;
+      return res.data.success ? "success" : "Hubo un error indefinido en el servidor de correos.";
+    } catch (error: any) {
+      console.error('Error sending reply:', error.response?.data || error.message);
+      return error.response?.data?.error || error.message || "Error de red";
     }
   }
 
   /**
    * Envía un email nuevo desde cero.
    */
-  static async sendEmail(credentials: EmailCredentials, to: string, subject: string, bodyText: string): Promise<boolean> {
+  static async sendEmail(credentials: EmailCredentials, to: string, subject: string, bodyText: string): Promise<string> {
     try {
       const res = await axios.post(`${this.baseURL}/api/smtp/send`, {
         credentials,
@@ -76,10 +76,10 @@ export class EmailService {
         subject,
         bodyText
       });
-      return !!res.data.success;
-    } catch (error) {
-      console.error('Error sending new email:', error);
-      return false;
+      return res.data.success ? "success" : "Hubo un error indefinido en el servidor de correos.";
+    } catch (error: any) {
+      console.error('Error sending new email:', error.response?.data || error.message);
+      return error.response?.data?.error || error.message || "Error de red";
     }
   }
 

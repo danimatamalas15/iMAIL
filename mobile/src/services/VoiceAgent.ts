@@ -99,7 +99,7 @@ export class VoiceAgent {
       }
 
       // Send the email using Gmail API
-      const success = await EmailService.sendReply(
+      const result = await EmailService.sendReply(
         credentials, 
         email.from, 
         email.subject, 
@@ -108,11 +108,11 @@ export class VoiceAgent {
         email.id
       );
 
-      if (success) {
+      if (result === "success") {
         await AudioServices.speak("CORREO ENVIADO.");
         hasSentReply = true;
       } else {
-        await AudioServices.speak("HUBO UN ERROR AL ENVIAR EL CORREO.");
+        await AudioServices.speak("HUBO UN ERROR AL ENVIAR EL CORREO. EL SERVIDOR DICE: " + result);
       }
     } else {
       await AudioServices.speak("PERFECTO, QUEDA PENDIENTE DE RESPUESTA.");
@@ -293,11 +293,11 @@ export class VoiceAgent {
             const cleanSubject = subject.replace(/\r?\n|\r/g, ' ').trim();
             const cleanTo = toEmail.replace(/\r?\n|\r/g, '').trim();
 
-            const success = await EmailService.sendEmail(credentials, cleanTo, cleanSubject, rawBody);
-            if (success) {
+            const result = await EmailService.sendEmail(credentials, cleanTo, cleanSubject, rawBody);
+            if (result === "success") {
                await AudioServices.speak("CORREO ENVIADO.");
             } else {
-               await AudioServices.speak("HUBO UN ERROR AL ENVIAR EL CORREO.");
+               await AudioServices.speak("HUBO UN ERROR AL ENVIAR EL CORREO. EL SERVIDOR DICE: " + result);
             }
             confirmationResolved = true;
             successFlow = true;
